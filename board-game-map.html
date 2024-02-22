@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+    <!-- add title -->
+    
+    <!-- import required libraries here -->
+    <script src="../lib/d3-dsv.min.js"></script>
+    <script src="../lib/d3-geo-projection.v2.min.js"></script>
+    <script src="../lib/d3-legend.min.js"></script>
+    <script src="../lib/d3-tip.min.js"></script>
+    <script src="../lib/d3.v5.min.js"></script>
+    <script src="../lib/topojson.v2.min.js"></script>
+    <style>
+        /* define CSS rules here */
+    </style>
+    <link rel="stylesheet" href="styles.css">
+    <title></title>
+</head>
+
+
+<body>
+    <!-- Add heading for the visualization -->
+    <div class="flexrow" style="margin-bottom: 48px; align-items: center; justify-content: space-between; width: 84%;">
+        <h1>board game popularity by country</h1>
+        <div id="game-select-container" class="flexrow" style="align-items: center;">
+            <select id="gameDropdown"></select>
+        <!-- Create dropdown element here. Options should be added after reading in game file, they should not be created here.-->
+            <div id="ratings-histogram"></div>
+        </div>
+    </div>
+    <div class="flexrow" id="body-container">
+        <div id="sidebar"></div>
+    </div>
+
+    <script>
+        // enter code to define margin and dimensions for svg
+        margin = ({top: 0, right: 0, bottom: 0, left: 0});
+        width = window.outerWidth * 0.66;
+        height = window.outerHeight * 0.56;
+
+        // width = 1000;
+        // height = 500;
+        console.log(window.outerWidth);
+        console.log(window.outerHeight);
+
+        // enter code to create svg
+        svg = d3.select('#body-container')
+            .append('svg')
+            .attr('id', 'choropleth')
+            .attr('width', width)
+            .attr('height', height);
+            // .attr('viewBox', `0 0 ${width + margin.left + margin.right} ${height + margin.bottom + margin.top}`);
+
+
+        // enter code to create color scale
+        const quantileScale = d3.scaleQuantile()
+                                .range([
+                                    '#ffffad', // #ffffcc, #ffff8f, #ffffad, #ffff99
+                                    '#8ceeac', // #a1dab4, #8ceeac
+                                    '#21b4c4', // #41b6c4, #21b4c4, #1ad5ea
+                                    '#074fa8' // #225ea8, #074fa8, #045cc8
+                                ]);
+        const mapColorsOnHover = {
+            '#212121': '#333333',
+            '#ffffad': '#ffffe0',
+            '#8ceeac': '#b6f6cb',
+            '#21b4c4': '#35d2e3',
+            '#074fa8': '#0365dd'
+        }
+        // enter code to define tooltip
+        
+        // enter code to define projection and path required for Choropleth
+        // For grading, set the name of functions for projection and path as "projection" and "path"
+        var projection = d3.geoNaturalEarth1();
+        var path = d3.geoPath().projection(projection);
+
+
+        // define any other global variables 
+        svg.on('mousemove', function() {
+            d3.select('#tooltip')
+                .style('left', `${d3.event.clientX}px`)
+                .style('top', `${d3.event.clientY}px`);
+        })
+
+        Promise.all([
+            // enter code to read files
+            d3.json('world_countries.json'),
+            d3.csv('ratings-by-country.csv')
+        ]).then(
+            // enter code to call ready() with required arguments
+            value => ready(null, value[0], value[1])
+        );
+        
+        // this function should be called once the data from files have been read
+        // world: topojson from world_countries.json
+        // gameData: data from ratings-by-country.csv
+        
+        function ready(error, world, gameData) {
+            // enter code to extract all unique games from gameData
+            var gameList = Array.from(new Set(gameData.map(d => d.Game)));
+            gameList.sort();
+
+            // enter code to append the game options to the dropdown
+            var dropdownElement = d3.select('#gameDropdown');
+            gameList.forEach((value) => dropdownElement
+            .append('option')
+            .attr('value', value)
+            .text(value));
+            
+            // event listener for the dropdown. Update choropleth and legend when selection changes. Call createMapAndLegend() with required arguments.
+            dropdownElement.on('change', function() {
+                createMapAndLegend(world, gameData, 
+                d3.select(this).node().value);
+            });
+            // create Choropleth with default option. Call createMapAndLegend() with required arguments. 
+            createMapAndLegend(world, gameData, gameList[0]);
+        }
+
+        // this function should create a Choropleth and legend using the world and gameData arguments for a selectedGame
+        // also use this function to update Choropleth and legend when a different game is selected from the dropdown
+        function createMapAndLegend(world, gameData, selectedGame){
+            console.log(selectedGame);
+
+            let dataForSelectedGame = new Map(
+                gameData.filter((d) => d.Game === selectedGame)
+                .map(d => [d.Country, new Map([
+                    ['Average Rating', +d['Average Rating']],
+                    ['Number of Users', +d['Number of Users']]
+                ])]));
+            console.log(dataForSelectedGame);
+
+            drawRatingsHistogramForGame(dataForSelectedGame);
+
+            quantileScale.domain(Array.from(dataForSelectedGame.values())
+                                        .map(d => d.get('Average Rating')));
+
+            d3.select('#countries').remove();
+
+            svg.append('g').attr('id', 'countries').selectAll('path')
+                .data(world.features)
+                .enter()
+                .append('path')
+                .attr('d', path)
+                .attr('fill', function(d) {
+                    let currentEntry = dataForSelectedGame.get(d.properties.name);
+                    if (currentEntry !== undefined) {
+                        let currentRatingForGame = currentEntry.get('Average Rating');
+                        if (currentRatingForGame !== undefined) {
+                            return quantileScale(currentRatingForGame);
+                        }
+                    }
+                    return '#212121';
+                })
+                .on('mouseenter', function(event) {
+                    // svg.call(tooltip);
+                    // tooltip.show();
+                    let infoSidebar = d3.select('#sidebar');
+                    let currentCountry = event.properties.name;
+                    let currentEntry = dataForSelectedGame.get(currentCountry);
+                    let tooltipElement = d3.select('#tooltip');
+                    let currentRatingForGame = currentEntry ? currentEntry.get('Average Rating') : 'N/A';
+                    let currentUserCountForGame = currentEntry ? currentEntry.get('Number of Users') : 'N/A';
+
+                    d3.select(this).style('fill', mapColorsOnHover[d3.select(this).attr('fill')]);
+
+                    
+                    infoSidebar.html('');
+                    infoSidebar.append('p').text(currentCountry.toUpperCase()).style('font-weight', 'bold');
+                    let focusedGameInTooltip = infoSidebar.append('div').attr('class', 'focused-game-in-tooltip')
+                    focusedGameInTooltip.append('p').text(selectedGame);
+                    focusedGameInTooltip.append('p').text(`${(currentRatingForGame == 'N/A') ? 'no data' : `${currentRatingForGame} / ${currentUserCountForGame} people`}`);
+
+                    let unfocusedGamesInTooltip = gameData.filter(
+                            value => (value['Country'] == currentCountry) 
+                                && (value['Average Rating'] !== undefined)
+                                && (value['Game'] !== selectedGame))
+                        .toSorted(
+                            (a, b) => (+b['Average Rating'] - +a['Average Rating'])).
+                        slice(0, 5);
+                    unfocusedGamesInTooltip.forEach(function(element) {
+                        let currGameInTooltip = infoSidebar.append('div')
+                            .attr('class', 'unfocused-game-in-tooltip');
+                        currGameInTooltip.append('p').text(element['Game']);
+                        currGameInTooltip.append('p').text(`${element['Average Rating']} / ${element['Number of Users']} people`)
+                    });
+                })
+                .on('mouseleave', function(event) {
+                    d3.select(this).style('fill', '');
+                })
+                // .append('defs')
+                //     .append('pattern')
+                //         .attr('width', 10)
+                //         .attr('height', 10)
+                //         .attr('patternTransform', 'rotate(45 0 0)')
+                //         .attr('patternUnits', 'userSpaceOnUse')
+                //     .append('path')
+                //         .attr('d', "M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2")
+                //         .attr('style', 'stroke: black; stroke-width:1')
+            
+            d3.select('#legend').remove();
+            svg.append('g').attr('id', 'legend')
+            .attr('transform', `translate(${width - 120}, 0)`)
+            .call(
+                d3.legendColor()
+                    .labelFormat(d3.format('.2f'))
+                    .scale(quantileScale)
+            );
+        }
+    
+    function drawRatingsHistogramForGame(dataForSelectedGame) {
+        const histogramHeight = window.outerHeight * 0.05;
+        const histogramWidth = 300;
+        const histogramMargin = {top: 10, right: 30, bottom: 30, left: 40}
+
+        d3.select('#ratings-histogram').html('');
+
+        let histogramSvg = d3.select('#ratings-histogram')
+            .append('svg')
+                .attr('width', histogramWidth + histogramMargin.left + histogramMargin.right)
+                .attr('height', histogramHeight + histogramMargin.top + histogramMargin.bottom)
+            .append('g')
+        
+        
+        let x = d3.scaleLinear()
+            .domain([0, 10])
+            .range([0, histogramWidth]);
+
+        histogramSvg.append('g')
+            .attr("transform", `translate(${histogramMargin.left}, ${histogramMargin.top + histogramHeight})`)
+            .call(d3.axisBottom(x));
+
+        dataForSelectedGame = Array.from(dataForSelectedGame.values());
+        let histogram = d3.histogram()
+            .value(function(d) {
+                let currRating = +d.get('Average Rating');
+                if (currRating == 10) {
+                    currRating -= 0.001;
+                }
+                return currRating;
+            })
+            .domain(x.domain())
+            .thresholds(x.ticks(20))
+        
+        let bins = histogram(dataForSelectedGame);
+        console.log(bins);
+        // console.log(bins);
+        // bins[bins.length - 2] = bins[bins.length - 2].concat(bins[bins.length - 1]); 
+        // bins.pop();
+        
+        let y = d3.scaleLinear()
+            .domain([0, d3.max(bins, d => d.length)])
+            .range([histogramHeight, 0]);
+        // histogramSvg.append('g').attr('transform', `translate(${histogramMargin.left}, ${histogramMargin.top})`).call(d3.axisLeft(y));
+        
+        histogramSvg.selectAll('rect')
+            .data(bins)
+            .enter()
+            .append('rect')
+                .attr('x', d => histogramMargin.left + x(d.x0))
+                .attr('transform', d => `translate(0, ${y(d.length) + histogramMargin.top})`)
+                // .attr('transform', d => `translate(${d.x0}, ${y(d.length)})`)
+                .attr('width', d => (x(d.x1) - x(d.x0) + 1) / 2)
+                .attr('height', d => histogramHeight - y(d.length))
+                // .attr('rx', 10)
+                .attr('fill', '#c74083')
+        
+        // d3.axisBottom(x).tickSize((domain, number) => 0);
+        histogramSvg.selectAll('.tick').selectAll('line').attr('opacity', 0).attr('stroke-width', 0).attr('pathLength', 0)
+        histogramSvg.select('.domain').attr('stroke-width', 1.5).attr('stroke-linecap', 'round')
+            .attr('d', 'M0.5,1H300.5')
+            .attr('opacity', 0)
+    }
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,111 @@
+@font-face {
+    font-family: "Noyh R";
+    src: url('./Noyh\ R\ W01\ Medium/Noyh\ R\ W01\ Medium.ttf');
+    /* font-weight: normal; */
+}
+
+/* @font-face {
+    font-family: "Futura";
+    src: url('./futura_yzYQF/Futura/Futura\ Heavy/Futura\ Heavy.otf');
+    font-weight: bold;
+} */
+
+path {
+    transition-duration: 0.1s;
+}
+
+html {
+    margin: 0;
+    padding: 2.8%;
+    max-height: 100%;
+    max-width: 100%;
+    min-width: 100%;
+    width: 100%;
+    position: absolute;
+    background-color: #0f0f10; /**#111113, #0f0f10 **/
+    color: white;
+    font-family: 'Noyh R';
+    font-size: 16;
+}
+
+h1 {
+    font-size: 42;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+p {
+    margin: 0.5em;
+}
+
+text {
+    fill: white;
+    font-family: 'Noyh R';
+}
+
+select {
+    font-family: 'Noyh R';
+    height: 3em;
+    border-radius: 3em;
+    padding: 0.5em;
+    font-weight: bold;
+    /* background: rgba(255,255,255,0.04); */
+}
+
+.flexrow {
+    display: flex;
+    flex-direction: row;
+    /* width: 100%; */
+}
+
+/* #info-sidebar {
+    width: 20%;
+} */
+
+.focused-game-in-tooltip {
+    background-color: #c74083; /**#B25785, #B95085, #C74385, #C54485, #c74887 **/
+    padding: 0.5em;
+    border-radius: 6px;
+    margin-bottom: 0.5em;
+}
+
+#choropleth {
+    position: absolute;
+    left: 20%;
+    /* top: 22%; */
+    /* position: relative; */
+    /* height: 64%; */
+    /* height: 88vh; */
+}
+
+#ratings-histogram {
+    /* height: 11.47vh; */
+    /* background-color: white; */
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    margin-left: 48px;
+}
+
+#sidebar {
+    width: 16%;
+    min-width: 16%;
+    max-width: 16%;
+    position: absolute;
+    /* top: 50%; */
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 0.5em 0.5em 0 0.5em;
+}
+
+.unfocused-game-in-tooltip {
+    background-color: #212121;
+    padding: 0.5em;
+    border-radius: 6px;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
